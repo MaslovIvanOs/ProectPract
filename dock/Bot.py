@@ -1,6 +1,6 @@
 import logging
 from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 from sympy import sympify, SympifyError
 
 logging.basicConfig(
@@ -11,10 +11,10 @@ logger = logging.getLogger(__name__)
 
 TOKEN = "7870332594:AAFcbUyP6fh9gZc1SszbDm9OXQtfCY9uM8s"
 
-def start(update: Update, context: CallbackContext) -> None:
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /start"""
     user = update.effective_user
-    update.message.reply_text(
+    await update.message.reply_text(
         f"Привет, {user.first_name}!\n"
         "Я - математический бот. Отправь мне математическое выражение, "
         "и я попробую его решить.\n\n"
@@ -28,9 +28,9 @@ def start(update: Update, context: CallbackContext) -> None:
         "производные и интегралы."
     )
 
-def help_command(update: Update, context: CallbackContext) -> None:
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /help"""
-    update.message.reply_text(
+    await update.message.reply_text(
         "Просто отправьте мне математическое выражение, и я попробую его вычислить.\n\n"
         "Доступные функции:\n"
         "• Основные операции: +, -, *, /, ^ или **\n"
@@ -46,7 +46,7 @@ def help_command(update: Update, context: CallbackContext) -> None:
         "integrate(x^2, x)"
     )
 
-def solve_math(update: Update, context: CallbackContext) -> None:
+async def solve_math(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик математических выражений"""
     try:
         # Получаем текст сообщения
@@ -57,34 +57,28 @@ def solve_math(update: Update, context: CallbackContext) -> None:
         result = expr.evalf()
         
         # Отправляем результат
-        update.message.reply_text(f"Результат: {result}")
+        await update.message.reply_text(f"Результат: {result}")
         
     except SympifyError:
-        update.message.reply_text("Не могу разобрать выражение. Пожалуйста, проверьте правильность ввода.")
+        await update.message.reply_text("Не могу разобрать выражение. Пожалуйста, проверьте правильность ввода.")
     except Exception as e:
         logger.error(f"Ошибка при вычислении: {e}")
-        update.message.reply_text("Произошла ошибка при вычислении. Попробуйте другое выражение.")
+        await update.message.reply_text("Произошла ошибка при вычислении. Попробуйте другое выражение.")
 
 def main() -> None:
     """Запуск бота"""
-    # Создаем Updater и передаем ему токен бота
-    updater = Updater(TOKEN)
-
-    # Получаем диспетчер для регистрации обработчиков
-    dispatcher = updater.dispatcher
+    # Создаем Application и передаем ему токен бота
+    application = Application.builder().token(TOKEN).build()
 
     # Регистрируем обработчики команд
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))
 
     # Регистрируем обработчик текстовых сообщений
-    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, solve_math))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, solve_math))
 
     # Запускаем бота
-    updater.start_polling()
-
-    # Бот работает до принудительной остановки
-    updater.idle()
+    application.run_polling()
 
 if __name__ == '__main__':
     main()
